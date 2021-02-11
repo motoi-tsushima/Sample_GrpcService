@@ -59,5 +59,5 @@ message ReservationTime {
     string subject = 1;
     google.protobuf.Timestamp time = 2;
     google.protobuf.Duration duration = 3;
-	string timeZone = 4;
+	google.protobuf.Duration timeZone = 4;
 }

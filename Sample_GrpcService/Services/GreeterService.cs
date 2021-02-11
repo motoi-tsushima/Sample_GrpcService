@@ -48,32 +48,13 @@ namespace Sample_GrpcService
 
         public override Task<ReservationTime> Reserve(ReservationTime request, ServerCallContext context)
         {
-            TimeSpan JapanTimeSpan = new TimeSpan(9, 0, 0);
-            TimeSpan BritainTimeSpan = new TimeSpan(0, 0, 0);
-            TimeSpan AmericaEasternTimeSpan = new TimeSpan(-4, 0, 0);
-
-
-            //タイムゾーンを設定する
-            TimeSpan timeSpan;
-
-            switch (request.TimeZone.Trim())
-            {
-                case "Brirain":
-                    timeSpan = BritainTimeSpan;
-                    break;
-                case "Japan":
-                    timeSpan = JapanTimeSpan;
-                    break;
-                case "AmericaEastern":
-                    timeSpan = AmericaEasternTimeSpan;
-                    break;
-                default:
-                    timeSpan = BritainTimeSpan;
-                    break;
-            }
-
             //リクエストパラメータを取得する
-            DateTimeOffset requestDateTime = request.Time.ToDateTimeOffset();
+            DateTimeOffset requestDateTimeUtc = request.Time.ToDateTimeOffset();
+            //TimeSpan requestTimeZone = request.TimeZone.ToTimeSpan();
+            TimeSpan requestTimeZone = TimeSpan.Zero;
+
+            DateTimeOffset requestDateTimeOffset = new DateTimeOffset(requestDateTimeUtc.DateTime, requestTimeZone);
+
             TimeSpan requestTimeSpan = request.Duration.ToTimeSpan();
 
             //開業時間と曜日
@@ -85,19 +66,21 @@ namespace Sample_GrpcService
                 ,new OpeningDays( 13, 20, DayOfWeek.Friday ) 
             };
 
+            /*----
+
             int whereCount;
             OpeningDays selectedDays = openingDays.FirstOrDefault();
 
             //リクエスト日より後の開業曜日を検索する。
             do
             {
-                List<OpeningDays>  openings = openingDays.Where(d => d.OpeningWeek == requestDateTime.DayOfWeek).ToList<OpeningDays>();
+                List<OpeningDays>  openings = openingDays.Where(d => d.OpeningWeek == requestDateTimeOffset.DayOfWeek).ToList<OpeningDays>();
                 whereCount = openings.Count();
 
                 if(whereCount == 0)
                 {
                     //開業曜日に含まれない場合、一日追加する。
-                    requestDateTime = requestDateTime.AddDays(1.0);
+                    requestDateTimeOffset = requestDateTimeOffset.AddDays(1.0);
                 }
                 else
                 {
@@ -109,24 +92,26 @@ namespace Sample_GrpcService
 
 
             //リクエスト日の開始時間が早すぎる場合、開始時間に変更する。
-            if (requestDateTime.Hour < selectedDays.OpeningTime)
+            if (requestDateTimeOffset.Hour < selectedDays.OpeningTime)
             {
-                requestDateTime = requestDateTime.AddHours(selectedDays.OpeningTime - requestDateTime.Hour);
-                requestDateTime = requestDateTime.AddMinutes(requestDateTime.Minute * -1);
+                requestDateTimeOffset = requestDateTimeOffset.AddHours(selectedDays.OpeningTime - requestDateTimeOffset.Hour);
+                requestDateTimeOffset = requestDateTimeOffset.AddMinutes(requestDateTimeOffset.Minute * -1);
             }
 
             //リクエスト日の終了時間が遅すぎる場合、終了時間に変更する。
-            if (selectedDays.ClosingTime < (requestDateTime.Hour + requestTimeSpan.Hours))
+            if (selectedDays.ClosingTime < (requestDateTimeOffset.Hour + requestTimeSpan.Hours))
             {
-                requestDateTime = requestDateTime.AddHours(
-                    (requestDateTime.Hour - selectedDays.ClosingTime + requestTimeSpan.Hours) * -1
+                requestDateTimeOffset = requestDateTimeOffset.AddHours(
+                    (requestDateTimeOffset.Hour - selectedDays.ClosingTime + requestTimeSpan.Hours) * -1
                     );
             }
+            
+            ----*/
 
             //予約日時を設定する。
             ReservationTime reservation = new ReservationTime();
             reservation.Subject = request.Subject;
-            reservation.Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTimeOffset(requestDateTime);
+            reservation.Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTimeOffset(requestDateTimeOffset);
             reservation.Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(requestTimeSpan);
             reservation.TimeZone = request.TimeZone;
 
