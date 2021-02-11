@@ -52,8 +52,10 @@ namespace Sample_GrpcService
             DateTimeOffset requestDateTimeUtc = request.Time.ToDateTimeOffset();
             //TimeSpan requestTimeZone = request.TimeZone.ToTimeSpan();
             TimeSpan requestTimeZone = TimeSpan.Zero;
+            TimeSpan requestCountryTimeZone = request.CountryTimeZone.ToTimeSpan();
 
             DateTimeOffset requestDateTimeOffset = new DateTimeOffset(requestDateTimeUtc.DateTime, requestTimeZone);
+            DateTimeOffset requestCountryDateTimeOffset = new DateTimeOffset(requestDateTimeUtc.DateTime, requestCountryTimeZone);
 
             TimeSpan requestTimeSpan = request.Duration.ToTimeSpan();
 
@@ -114,6 +116,7 @@ namespace Sample_GrpcService
             reservation.Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTimeOffset(requestDateTimeOffset);
             reservation.Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(requestTimeSpan);
             reservation.TimeZone = request.TimeZone;
+            reservation.CountryTimeZone = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(requestCountryTimeZone);
 
             //ó\ñÒì˙éûÇï‘Ç∑ÅB
             return Task.FromResult(reservation);

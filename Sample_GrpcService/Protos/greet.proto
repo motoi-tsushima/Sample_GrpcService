@@ -60,4 +60,5 @@ message ReservationTime {
     google.protobuf.Timestamp time = 2;
     google.protobuf.Duration duration = 3;
 	google.protobuf.Duration timeZone = 4;
+	google.protobuf.Duration countryTimeZone = 5;
 }
