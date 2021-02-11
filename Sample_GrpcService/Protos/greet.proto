@@ -2,6 +2,9 @@ syntax = "proto3";
 
 option csharp_namespace = "Sample_GrpcService";
 
+import "google/protobuf/duration.proto";  
+import "google/protobuf/timestamp.proto";
+
 package greet;
 
 // The greeting service definition.
@@ -12,6 +15,8 @@ service Greeter {
   rpc MyFunction (MyRequest) returns (MyFunctionRply);
   // calc function
   rpc Calc (CalcParameter) returns (CalcResult);
+  // Reserve function
+  rpc Reserve (ReservationTime) returns (ReservationTime);
 }
 
 // The request message containing the user's name.
@@ -49,3 +54,10 @@ message CalcResult {
 	int32 Division = 4;
 }
 
+// The request and response for 
+message ReservationTime {
+    string subject = 1;
+    google.protobuf.Timestamp time = 2;
+    google.protobuf.Duration duration = 3;
+	string timeZone = 4;
+}
