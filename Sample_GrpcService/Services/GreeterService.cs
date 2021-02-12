@@ -24,6 +24,12 @@ namespace Sample_GrpcService
             });
         }
 
+        /// <summary>
+        /// 単項メソッドの追加テスト
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public override Task<MyFunctionRply> MyFunction(MyRequest request, ServerCallContext context)
         {
             return Task.FromResult(new MyFunctionRply
@@ -32,6 +38,12 @@ namespace Sample_GrpcService
             });
         }
 
+        /// <summary>
+        /// 四則演算
+        /// </summary>
+        /// <param name="parameter"></param>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public override Task<CalcResult> Calc(CalcParameter parameter, ServerCallContext context)
         {
             Int32 value1 = parameter.Parameter1;
@@ -67,15 +79,39 @@ namespace Sample_GrpcService
 
             TimeSpan requestTimeSpan = request.Duration.ToTimeSpan();
 
+            //日程調整
+            requestCountryDateTimeOffset = ScheduleAdjustment(requestCountryDateTimeOffset, requestTimeSpan);
+
+            //予約日時を設定する。
+            ReservationTime reservation = new ReservationTime();
+            reservation.Subject = request.Subject;
+            //reservation.Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTimeOffset(requestDateTimeOffset);
+            reservation.Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTimeOffset(requestCountryDateTimeOffset);
+            reservation.Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(requestTimeSpan);
+            reservation.TimeZone = request.TimeZone;
+            reservation.CountryTimeZone = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(requestCountryTimeZone);
+
+            //予約日時を返す。
+            return Task.FromResult(reservation);
+        }
+
+        /// <summary>
+        /// 日程調整
+        /// </summary>
+        /// <param name="requestCountryDateTimeOffset">施設側タイムゾーンの日時</param>
+        /// <param name="requestTimeSpan">予約時間</param>
+        /// <returns></returns>
+        private DateTimeOffset ScheduleAdjustment(DateTimeOffset requestCountryDateTimeOffset, TimeSpan requestTimeSpan)
+        {
             //開業時間と曜日
             List<OpeningDays> openingDays = new List<OpeningDays> {
-                new OpeningDays( 9, 17, DayOfWeek.Monday ) 
+                new OpeningDays( 9, 17, DayOfWeek.Monday )
                 ,new OpeningDays( 9, 17, DayOfWeek.Tuesday )
-                ,new OpeningDays( 9, 12, DayOfWeek.Wednesday ) 
+                ,new OpeningDays( 9, 12, DayOfWeek.Wednesday )
                 ,new OpeningDays( 9, 17, DayOfWeek.Thursday )
-                ,new OpeningDays( 13, 20, DayOfWeek.Friday ) 
+                ,new OpeningDays( 13, 20, DayOfWeek.Friday )
             };
-            
+
             int whereCount;
             OpeningDays selectedDays = openingDays.FirstOrDefault();
             bool addDayProcess = false;
@@ -83,35 +119,27 @@ namespace Sample_GrpcService
             //リクエスト日より後の開業曜日を検索する。
             do
             {
-                List<OpeningDays>  openings = 
+                List<OpeningDays> openings =
                     openingDays.Where(d => d.OpeningWeek == requestCountryDateTimeOffset.DayOfWeek)
                     .ToList<OpeningDays>();
                 whereCount = openings.Count();
 
-                if(whereCount == 0)
+                if (whereCount == 0)
                 {
                     //開業曜日に含まれない場合、一日追加する。
                     requestCountryDateTimeOffset = requestCountryDateTimeOffset.AddDays(1.0);
                 }
-                else if(addDayProcess == true)
+                else if (addDayProcess == true)
                 {
                     selectedDays = openings.FirstOrDefault();
 
                     //リクエスト日の終了時間が遅すぎる場合、営業時間の最も遅い時間に、時間を早める。
-                    int countryAddHour = 0;
-                    int countryMinutes = requestCountryDateTimeOffset.Minute;
-                    if (0 < countryMinutes && countryMinutes < 60)
-                        countryAddHour++;
+                    TimeSpan subtractionTime = new TimeSpan(
+                        selectedDays.ClosingTime - requestCountryDateTimeOffset.Hour - requestTimeSpan.Hours, 
+                        (requestTimeSpan.Minutes + requestCountryDateTimeOffset.Minute) * (-1) , 0);
 
-                    int durationAddHour = 0;
-                    int durationMinutes = requestTimeSpan.Minutes;
-                    if (0 < durationMinutes && durationMinutes < 60)
-                        durationAddHour++;
+                    requestCountryDateTimeOffset = requestCountryDateTimeOffset.Add(subtractionTime);
 
-                    requestCountryDateTimeOffset = requestCountryDateTimeOffset.AddHours(
-                        ((requestCountryDateTimeOffset.Hour + countryAddHour)
-                        - selectedDays.ClosingTime + (requestTimeSpan.Hours + durationAddHour)) * -1
-                        );
                     addDayProcess = false;
                 }
                 else
@@ -120,18 +148,11 @@ namespace Sample_GrpcService
                     selectedDays = openings.FirstOrDefault();
 
                     //リクエスト日の終了時間が遅すぎる場合、時間を早めて、一日追加する。
-                    int countryAddHour = 0;
-                    int countryMinutes = requestCountryDateTimeOffset.Minute;
-                    if (0 < countryMinutes || countryMinutes < 60)
-                        countryAddHour++;
+                    double countryMinutes = (double)requestCountryDateTimeOffset.Minute / 60.0;
+                    double durationMinutes = ((double)requestTimeSpan.Hours * 60.0 + (double)requestTimeSpan.Minutes) / 60.0;
 
-                    int durationAddHour = 0;
-                    int durationMinutes = requestTimeSpan.Minutes;
-                    if (0 < durationMinutes || durationMinutes < 60)
-                        durationAddHour++;
-
-                    if (selectedDays.ClosingTime < 
-                        (requestCountryDateTimeOffset.Hour + countryAddHour + requestTimeSpan.Hours + durationAddHour)
+                    if ((double)selectedDays.ClosingTime <
+                        ((double)requestCountryDateTimeOffset.Hour + countryMinutes + durationMinutes)
                         )
                     {
                         requestCountryDateTimeOffset = requestCountryDateTimeOffset.AddDays(1.0);
@@ -150,19 +171,8 @@ namespace Sample_GrpcService
                 requestCountryDateTimeOffset = requestCountryDateTimeOffset.AddHours(selectedDays.OpeningTime - requestCountryDateTimeOffset.Hour);
                 requestCountryDateTimeOffset = requestCountryDateTimeOffset.AddMinutes(requestCountryDateTimeOffset.Minute * -1);
             }
-            
 
-            //予約日時を設定する。
-            ReservationTime reservation = new ReservationTime();
-            reservation.Subject = request.Subject;
-            //reservation.Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTimeOffset(requestDateTimeOffset);
-            reservation.Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTimeOffset(requestCountryDateTimeOffset);
-            reservation.Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(requestTimeSpan);
-            reservation.TimeZone = request.TimeZone;
-            reservation.CountryTimeZone = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(requestCountryTimeZone);
-
-            //予約日時を返す。
-            return Task.FromResult(reservation);
+            return requestCountryDateTimeOffset;
         }
 
     }
