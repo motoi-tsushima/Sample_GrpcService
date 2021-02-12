@@ -46,6 +46,12 @@ namespace Sample_GrpcService
             });
         }
 
+        /// <summary>
+        /// 施設予約
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public override Task<ReservationTime> Reserve(ReservationTime request, ServerCallContext context)
         {
             //リクエストパラメータを取得する
@@ -72,6 +78,7 @@ namespace Sample_GrpcService
             
             int whereCount;
             OpeningDays selectedDays = openingDays.FirstOrDefault();
+            bool addDayProcess = false;
 
             //リクエスト日より後の開業曜日を検索する。
             do
@@ -86,20 +93,50 @@ namespace Sample_GrpcService
                     //開業曜日に含まれない場合、一日追加する。
                     requestCountryDateTimeOffset = requestCountryDateTimeOffset.AddDays(1.0);
                 }
+                else if(addDayProcess == true)
+                {
+                    selectedDays = openings.FirstOrDefault();
+
+                    //リクエスト日の終了時間が遅すぎる場合、営業時間の最も遅い時間に、時間を早める。
+                    int countryAddHour = 0;
+                    int countryMinutes = requestCountryDateTimeOffset.Minute;
+                    if (0 < countryMinutes && countryMinutes < 60)
+                        countryAddHour++;
+
+                    int durationAddHour = 0;
+                    int durationMinutes = requestTimeSpan.Minutes;
+                    if (0 < durationMinutes && durationMinutes < 60)
+                        durationAddHour++;
+
+                    requestCountryDateTimeOffset = requestCountryDateTimeOffset.AddHours(
+                        ((requestCountryDateTimeOffset.Hour + countryAddHour)
+                        - selectedDays.ClosingTime + (requestTimeSpan.Hours + durationAddHour)) * -1
+                        );
+                    addDayProcess = false;
+                }
                 else
                 {
                     //開業曜日に含まれる場合、該当の開業時間と曜日を返す。
                     selectedDays = openings.FirstOrDefault();
 
                     //リクエスト日の終了時間が遅すぎる場合、時間を早めて、一日追加する。
-                    if (selectedDays.ClosingTime < (requestCountryDateTimeOffset.Hour + requestTimeSpan.Hours))
-                    {
-                        requestCountryDateTimeOffset = requestCountryDateTimeOffset.AddHours(
-                            (requestCountryDateTimeOffset.Hour - selectedDays.ClosingTime + requestTimeSpan.Hours) * -1
-                            );
+                    int countryAddHour = 0;
+                    int countryMinutes = requestCountryDateTimeOffset.Minute;
+                    if (0 < countryMinutes || countryMinutes < 60)
+                        countryAddHour++;
 
+                    int durationAddHour = 0;
+                    int durationMinutes = requestTimeSpan.Minutes;
+                    if (0 < durationMinutes || durationMinutes < 60)
+                        durationAddHour++;
+
+                    if (selectedDays.ClosingTime < 
+                        (requestCountryDateTimeOffset.Hour + countryAddHour + requestTimeSpan.Hours + durationAddHour)
+                        )
+                    {
                         requestCountryDateTimeOffset = requestCountryDateTimeOffset.AddDays(1.0);
 
+                        addDayProcess = true;
                         whereCount = 0;
                     }
                 }
