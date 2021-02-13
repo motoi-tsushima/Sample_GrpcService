@@ -59,6 +59,30 @@ namespace Sample_GrpcService
         }
 
         /// <summary>
+        /// 時差の変更
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public override Task<ReservationTime> ChangeTimeZone(ReservationTime request, ServerCallContext context)
+        {
+            //リクエストパラメータを取得する
+            DateTime requestDateTime = request.Time.ToDateTime();
+            TimeSpan timeZone = request.TimeZone.ToTimeSpan();
+
+            //時差を変更する
+            DateTime changeDateTime = requestDateTime.Add(timeZone);
+
+            //時差を変更した日時を設定する。
+            ReservationTime reservation = new ReservationTime();
+            reservation.Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(changeDateTime);
+            reservation.TimeZone = request.TimeZone;
+
+            //時差を変更した日時を返す。
+            return Task.FromResult(reservation);
+        }
+
+        /// <summary>
         /// 施設予約
         /// </summary>
         /// <param name="request"></param>

@@ -15,6 +15,8 @@ service Greeter {
   rpc MyFunction (MyRequest) returns (MyFunctionRply);
   // calc function
   rpc Calc (CalcParameter) returns (CalcResult);
+  // ChangeTimeZone function
+  rpc ChangeTimeZone (ReservationTime) returns (ReservationTime);
   // Reserve function
   rpc Reserve (ReservationTime) returns (ReservationTime);
 }
