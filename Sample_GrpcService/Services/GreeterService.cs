@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Sample_GrpcService.Models;
+using System.IO;
 
 namespace Sample_GrpcService
 {
@@ -199,5 +200,42 @@ namespace Sample_GrpcService
             return requestCountryDateTimeOffset;
         }
 
+        /// <summary>
+        /// ファイルダウンロード(サーバー ストリーミング メソッド)
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="responseStream">ストリーミング</param>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public override async Task FileDownload(FileDownloadRequest request,
+            IServerStreamWriter<FileDownloadStream> responseStream, ServerCallContext context)
+        {
+            const int BufferSize = 4096;
+            byte[] buffer = new byte[BufferSize];
+
+            using(var fs = new FileStream(request.FileName, FileMode.Open, FileAccess.Read))
+            {
+                int offset = 0;
+                int readSize = 0;
+                while ((readSize = fs.Read(buffer, offset, BufferSize)) > 0)
+                {
+                    //if (context.CancellationToken.IsCancellationRequested)
+                    //{
+                    //    break;
+                    //}
+
+                    offset += readSize;
+
+                    FileDownloadStream fileDownloadStream = new FileDownloadStream();
+                    fileDownloadStream.Binary = Google.Protobuf.ByteString.CopyFrom(buffer);
+                    fileDownloadStream.FileName = request.FileName;
+                    fileDownloadStream.FileSize = readSize;
+
+                    await responseStream.WriteAsync(fileDownloadStream);
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                    //await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
+                }
+            }
+        }
     }
 }
