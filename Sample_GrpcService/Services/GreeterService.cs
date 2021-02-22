@@ -210,21 +210,28 @@ namespace Sample_GrpcService
         public override async Task FileDownload(FileDownloadRequest request,
             IServerStreamWriter<FileDownloadStream> responseStream, ServerCallContext context)
         {
-            const int BufferSize = 4096;
+            const int BufferSize = 10240;
             byte[] buffer = new byte[BufferSize];
+
+            string currentDir = Directory.GetCurrentDirectory();
+            Console.WriteLine("$CurrentDirectory = {0}", currentDir);
+
 
             using(var fs = new FileStream(request.FileName, FileMode.Open, FileAccess.Read))
             {
-                int offset = 0;
+                int downloadSize = 0;
                 int readSize = 0;
-                while ((readSize = fs.Read(buffer, offset, BufferSize)) > 0)
-                {
-                    //if (context.CancellationToken.IsCancellationRequested)
-                    //{
-                    //    break;
-                    //}
 
-                    offset += readSize;
+                while ((readSize = fs.Read(buffer, 0, BufferSize)) > 0)
+                {
+                    Console.WriteLine("ダウンロード リクエスト");
+
+                    //クライアントからキャンセルされたら終了する。
+                    if (context.CancellationToken.IsCancellationRequested)
+                    {
+                        Console.WriteLine("キャンセル リクエスト");
+                        break;
+                    }
 
                     FileDownloadStream fileDownloadStream = new FileDownloadStream();
                     fileDownloadStream.Binary = Google.Protobuf.ByteString.CopyFrom(buffer);
@@ -234,6 +241,10 @@ namespace Sample_GrpcService
                     await responseStream.WriteAsync(fileDownloadStream);
                     await Task.Delay(TimeSpan.FromSeconds(1));
                     //await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
+
+                    downloadSize += readSize;
+
+                    Console.WriteLine("{0}byte ダウンロード", downloadSize);
                 }
             }
         }
