@@ -248,5 +248,51 @@ namespace Sample_GrpcService
                 }
             }
         }
+
+        /// <summary>
+        /// ファイルアップロード(クライアント ストリーミング メソッド)
+        /// </summary>
+        /// <param name="requestStream">ストリーミング</param>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public override async Task<FileUploadResponse> FileUpload(
+            IAsyncStreamReader<FileUploadStream> requestStream, ServerCallContext context)
+        {
+            string fileName = null;
+            string result = "Untreated";
+            FileStream fs = null;
+
+            try
+            {
+                await foreach (var message in requestStream.ReadAllAsync())
+                {
+                    if(fs == null)
+                    {
+                        fileName = message.FileName;
+                        fs = new FileStream(fileName, FileMode.Create, FileAccess.Write);
+                    }
+
+                    byte[] bin = message.Binary.ToByteArray();
+                    int size = (int)message.FileSize;
+                    fs.Write(bin, 0, size);
+                }
+
+                result = "Success";
+            }
+            catch (Exception ex)
+            {
+                result = ex.Message;
+            }
+            finally
+            {
+                if (fs != null)
+                {
+                    fs.Close();
+                    fs.Dispose();
+                }
+            }
+
+            return new FileUploadResponse() { FileName = fileName, Result = result };
+        }
     }
 }

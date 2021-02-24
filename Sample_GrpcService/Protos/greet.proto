@@ -19,8 +19,10 @@ service Greeter {
   rpc ChangeTimeZone (ReservationTime) returns (ReservationTime);
   // Reserve function
   rpc Reserve (ReservationTime) returns (ReservationTime);
-  // Server streaming
+  // Server Streaming
   rpc FileDownload(FileDownloadRequest) returns (stream FileDownloadStream);
+  // Client Streaming
+  rpc FileUpload(stream FileUploadStream) returns (FileUploadResponse);
 }
 
 // The request message containing the user's name.
@@ -67,15 +69,27 @@ message ReservationTime {
 	google.protobuf.Duration countryTimeZone = 5;
 }
 
-// Call Server streaming
+// Call Server Streaming
 message FileDownloadRequest {
 	string fileName = 1;
 }
 
-// Server streaming
+// Server Streaming
 message FileDownloadStream {
 	string fileName = 1;
 	int64  fileSize = 2;
 	bytes binary = 3;
 }
 
+// Client Streaming
+message FileUploadStream {
+	string fileName = 1;
+	int64  fileSize = 2;
+	bytes binary = 3;
+}
+
+// Client Response
+message FileUploadResponse {
+	string fileName = 1;
+	string result = 2;
+}
