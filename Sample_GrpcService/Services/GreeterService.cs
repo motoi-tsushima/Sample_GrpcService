@@ -317,7 +317,7 @@ namespace Sample_GrpcService
                     break;
                 }
 
-                // 受信したパケットのデータをバイト単位で右シフトする。
+                // 受信したパケットのデータをバイト単位でビット反転する。
                 byte[] bin = message.Binary.ToArray<byte>();
                 long binSize = message.BinarySize;
 
