@@ -294,5 +294,48 @@ namespace Sample_GrpcService
 
             return new FileUploadResponse() { FileName = fileName, Result = result };
         }
+
+        /// <summary>
+        /// 双方向ストリーミング メソッド
+        /// </summary>
+        /// <param name="requestStream">リクエスト ストリーム</param>
+        /// <param name="responseStream">レスポンス ストリーム</param>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public override async Task BidirectionalStream(
+            IAsyncStreamReader<BidirectionalStreamRequest> requestStream,
+            IServerStreamWriter<BidirectionalStreamResponse> responseStream, 
+            ServerCallContext context)
+        {
+            // リクエストストリームを受信するループ。
+            await foreach (var message in requestStream.ReadAllAsync())
+            {
+                //終了確認
+                string requestString = message.Request;
+                if(requestString == "end")
+                {
+                    break;
+                }
+
+                // 受信したパケットのデータをバイト単位で右シフトする。
+                byte[] bin = message.Binary.ToArray<byte>();
+                long binSize = message.BinarySize;
+
+                byte[] sendBin = new byte[binSize];
+
+                for(long i = 0; i < binSize; i++)
+                {
+                    sendBin[i] = (byte)(bin[i] ^ (byte)0xFF);
+                }
+
+                // レスポンスを返す。
+                BidirectionalStreamResponse response = new BidirectionalStreamResponse();
+                response.Binary = Google.Protobuf.ByteString.CopyFrom(sendBin);
+                response.BinarySize = binSize;
+                response.Result = "success";
+
+                await responseStream.WriteAsync(response);
+            }
+        }
     }
 }

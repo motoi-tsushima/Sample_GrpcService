@@ -23,6 +23,8 @@ service Greeter {
   rpc FileDownload(FileDownloadRequest) returns (stream FileDownloadStream);
   // Client Streaming
   rpc FileUpload(stream FileUploadStream) returns (FileUploadResponse);
+  //Bidirectional Streaming
+  rpc BidirectionalStream(stream BidirectionalStreamRequest) returns (stream BidirectionalStreamResponse);
 }
 
 // The request message containing the user's name.
@@ -93,3 +95,19 @@ message FileUploadResponse {
 	string fileName = 1;
 	string result = 2;
 }
+
+//Bidirectional Streaming Request
+message BidirectionalStreamRequest{
+	string request = 1;
+	bytes binary = 2;
+	int64  binarySize = 3;
+}
+
+//Bidirectional Streaming Response
+message BidirectionalStreamResponse{
+	string result = 1;
+	bytes binary = 2;
+	int64  binarySize = 3;
+}
+
+
